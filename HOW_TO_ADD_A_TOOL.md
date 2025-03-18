@@ -108,31 +108,38 @@ def asset_creation_strategy() -> str:
 
 ## Best Practices
 
-1. **Error Handling**:
+1. **Existence Checking**:
+
+   - ALWAYS check if objects, scripts, assets, or materials exist before creating or updating them
+   - Use appropriate search tools (`find_objects_by_name`, `list_scripts`, `get_asset_list`) to verify existence
+   - Handle both cases: creation when it doesn't exist and updating when it does
+   - Implement proper error handling when an expected resource is not found
+
+2. **Error Handling**:
 
    - Always include try-catch blocks in Python tools
    - Validate parameters in C# handlers
    - Return meaningful error messages
 
-2. **Documentation**:
+3. **Documentation**:
 
    - Add XML documentation to C# handlers
    - Include detailed docstrings in Python tools
    - Update the prompt with clear usage instructions
 
-3. **Parameter Validation**:
+4. **Parameter Validation**:
 
    - Validate parameters on both Python and C# sides
    - Use appropriate types (str, int, float, List, etc.)
    - Provide default values when appropriate
 
-4. **Testing**:
+5. **Testing**:
 
    - Test the tool in both Unity Editor and Python environments
    - Verify error handling works as expected
    - Check that the tool integrates well with existing functionality
 
-5. **Code Organization**:
+6. **Code Organization**:
    - Group related tools in appropriate handler classes
    - Keep tools focused and single-purpose
    - Follow existing naming conventions
@@ -150,14 +157,29 @@ public static class ExampleHandler
     {
         string prefabName = (string)@params["prefab_name"];
         string template = (string)@params["template"];
+        bool overwrite = @params["overwrite"] != null ? (bool)@params["overwrite"] : false;
+
+        // Check if the prefab already exists
+        string prefabPath = $"Assets/Prefabs/{prefabName}.prefab";
+        bool prefabExists = System.IO.File.Exists(prefabPath);
+
+        if (prefabExists && !overwrite)
+        {
+            return new {
+                message = $"Prefab already exists: {prefabName}. Use overwrite=true to replace it.",
+                exists = true,
+                path = prefabPath
+            };
+        }
 
         // Implementation
         GameObject prefab = new GameObject(prefabName);
         // ... setup prefab ...
 
         return new {
-            message = $"Created prefab: {prefabName}",
-            path = $"Assets/Prefabs/{prefabName}.prefab"
+            message = prefabExists ? $"Updated prefab: {prefabName}" : $"Created prefab: {prefabName}",
+            exists = prefabExists,
+            path = prefabPath
         };
     }
 }
@@ -170,33 +192,51 @@ public static class ExampleHandler
 def create_prefab(
     ctx: Context,
     prefab_name: str,
-    template: str = "default"
+    template: str = "default",
+    overwrite: bool = False
 ) -> str:
-    """Create a new prefab in the project.
+    """Create a new prefab in the project or update if it exists.
 
     Args:
         ctx: The MCP context
         prefab_name: Name for the new prefab
         template: Template to use (default: "default")
+        overwrite: Whether to overwrite an existing prefab (default: False)
 
     Returns:
         str: Success message or error details
     """
     try:
+        # First check if the prefab already exists
+        assets = get_unity_connection().send_command("GET_ASSET_LIST", {
+            "type": "Prefab",
+            "search_pattern": prefab_name,
+            "folder": "Assets/Prefabs"
+        }).get("assets", [])
+        
+        prefab_exists = any(asset.get("name") == prefab_name for asset in assets)
+        
+        if prefab_exists and not overwrite:
+            return f"Prefab '{prefab_name}' already exists. Use overwrite=True to replace it."
+            
+        # Create or update the prefab
         response = get_unity_connection().send_command("CREATE_PREFAB", {
             "prefab_name": prefab_name,
-            "template": template
+            "template": template,
+            "overwrite": overwrite
         })
-        return response.get("message", "Prefab created successfully")
+        
+        return response.get("message", "Prefab operation completed successfully")
     except Exception as e:
-        return f"Error creating prefab: {str(e)}"
+        return f"Error with prefab operation: {str(e)}"
 ```
 
 3. **Update Prompt**:
 
 ```python
 "1. **Prefab Management**:\n"
-"   - Create prefabs with `create_prefab(prefab_name, template)`\n"
+"   - ALWAYS check if a prefab exists before creating it\n"
+"   - Create or update prefabs with `create_prefab(prefab_name, template, overwrite=False)`\n"
 ```
 
 ## Troubleshooting

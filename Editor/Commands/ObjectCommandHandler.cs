@@ -46,6 +46,7 @@ namespace MCPServer.Editor.Commands
                 "EMPTY" => new GameObject(),
                 "CAMERA" => new GameObject("Camera") { }.AddComponent<Camera>().gameObject,
                 "LIGHT" => new GameObject("Light") { }.AddComponent<Light>().gameObject,
+                "DIRECTIONAL_LIGHT" => CreateDirectionalLight(),
                 _ => throw new System.Exception($"Unsupported object type: {type}")
             };
 
@@ -382,6 +383,19 @@ namespace MCPServer.Editor.Commands
                     .Select(i => BuildHierarchyNode(obj.transform.GetChild(i).gameObject))
                     .ToList()
             };
+        }
+        
+        /// <summary>
+        /// Creates a directional light game object
+        /// </summary>
+        private static GameObject CreateDirectionalLight()
+        {
+            var obj = new GameObject("DirectionalLight");
+            var light = obj.AddComponent<Light>();
+            light.type = LightType.Directional;
+            light.intensity = 1.0f;
+            light.shadows = LightShadows.Soft;
+            return obj;
         }
     }
 }

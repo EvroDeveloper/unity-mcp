@@ -25,6 +25,19 @@ public static partial class UnityMCPBridge
 
     // Add public property to expose running state
     public static bool IsRunning => isRunning;
+    
+    // Add method to check existence of a folder
+    public static bool FolderExists(string path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return false;
+        
+        if (path.Equals("Assets", StringComparison.OrdinalIgnoreCase))
+            return true;
+            
+        string fullPath = Path.Combine(Application.dataPath, path.StartsWith("Assets/") ? path.Substring(7) : path);
+        return Directory.Exists(fullPath);
+    }
 
     static UnityMCPBridge()
     {
@@ -84,7 +97,14 @@ public static partial class UnityMCPBridge
             try
             {
                 var client = await listener.AcceptTcpClientAsync();
-                _ = HandleClientAsync(client); // Fire and forget each client connection
+                // Enable basic socket keepalive
+                client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+                
+                // Set longer receive timeout to prevent quick disconnections
+                client.ReceiveTimeout = 60000; // 60 seconds
+                
+                // Fire and forget each client connection
+                _ = HandleClientAsync(client);
             }
             catch (Exception ex)
             {

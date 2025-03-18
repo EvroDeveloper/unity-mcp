@@ -28,6 +28,19 @@ def register_scene_tools(mcp: FastMCP):
         """
         try:
             unity = get_unity_connection()
+            
+            # Check if the scene exists in the project
+            scenes = unity.send_command("GET_ASSET_LIST", {
+                "type": "Scene",
+                "search_pattern": scene_path.split('/')[-1],
+                "folder": '/'.join(scene_path.split('/')[:-1]) or "Assets"
+            }).get("assets", [])
+            
+            # Check if any scene matches the exact path
+            scene_exists = any(scene.get("path") == scene_path for scene in scenes)
+            if not scene_exists:
+                return f"Scene at '{scene_path}' not found in the project."
+                
             result = unity.send_command("OPEN_SCENE", {"scene_path": scene_path})
             return result.get("message", "Scene opened successfully")
         except Exception as e:
@@ -48,19 +61,36 @@ def register_scene_tools(mcp: FastMCP):
             return f"Error saving scene: {str(e)}"
 
     @mcp.tool()
-    def new_scene(ctx: Context, scene_path: str) -> str:
+    def new_scene(ctx: Context, scene_path: str, overwrite: bool = False) -> str:
         """Create a new empty scene in the Unity editor.
         
         Args:
             scene_path: Full path where the new scene should be saved (e.g., "Assets/Scenes/NewScene.unity")
+            overwrite: Whether to overwrite if scene already exists (default: False)
             
         Returns:
             str: Success message or error details
         """
         try:
             unity = get_unity_connection()
+            
+            # Check if a scene with this path already exists
+            scenes = unity.send_command("GET_ASSET_LIST", {
+                "type": "Scene",
+                "search_pattern": scene_path.split('/')[-1],
+                "folder": '/'.join(scene_path.split('/')[:-1]) or "Assets"
+            }).get("assets", [])
+            
+            # Check if any scene matches the exact path
+            scene_exists = any(scene.get("path") == scene_path for scene in scenes)
+            if scene_exists and not overwrite:
+                return f"Scene at '{scene_path}' already exists. Use overwrite=True to replace it."
+            
             # Create new scene
-            result = unity.send_command("NEW_SCENE", {"scene_path": scene_path})
+            result = unity.send_command("NEW_SCENE", {
+                "scene_path": scene_path,
+                "overwrite": overwrite
+            })
             
             # Save the scene to ensure it's properly created
             unity.send_command("SAVE_SCENE")
@@ -115,7 +145,8 @@ def register_scene_tools(mcp: FastMCP):
         name: str = None,
         location: List[float] = None,
         rotation: List[float] = None,
-        scale: List[float] = None
+        scale: List[float] = None,
+        replace_if_exists: bool = False
     ) -> str:
         """
         Create a game object in the Unity scene.
@@ -126,12 +157,27 @@ def register_scene_tools(mcp: FastMCP):
             location: [x, y, z] position (defaults to [0, 0, 0]).
             rotation: [x, y, z] rotation in degrees (defaults to [0, 0, 0]).
             scale: [x, y, z] scale factors (defaults to [1, 1, 1]).
+            replace_if_exists: Whether to replace if an object with the same name exists (default: False)
         
         Returns:
             Confirmation message with the created object's name.
         """
         try:
             unity = get_unity_connection()
+            
+            # Check if an object with the specified name already exists (if name is provided)
+            if name:
+                found_objects = unity.send_command("FIND_OBJECTS_BY_NAME", {
+                    "name": name
+                }).get("objects", [])
+                
+                if found_objects and not replace_if_exists:
+                    return f"Object with name '{name}' already exists. Use replace_if_exists=True to replace it."
+                elif found_objects and replace_if_exists:
+                    # Delete the existing object
+                    unity.send_command("DELETE_OBJECT", {"name": name})
+            
+            # Create the new object
             params = {
                 "type": type.upper(),
                 "location": location or [0, 0, 0],
@@ -140,6 +186,7 @@ def register_scene_tools(mcp: FastMCP):
             }
             if name:
                 params["name"] = name
+                
             result = unity.send_command("CREATE_OBJECT", params)
             return f"Created {type} game object: {result['name']}"
         except Exception as e:
@@ -180,6 +227,48 @@ def register_scene_tools(mcp: FastMCP):
         """
         try:
             unity = get_unity_connection()
+            
+            # Check if the object exists
+            found_objects = unity.send_command("FIND_OBJECTS_BY_NAME", {
+                "name": name
+            }).get("objects", [])
+            
+            if not found_objects:
+                return f"Object with name '{name}' not found in the scene."
+            
+            # If set_parent is provided, check if parent object exists
+            if set_parent is not None:
+                parent_objects = unity.send_command("FIND_OBJECTS_BY_NAME", {
+                    "name": set_parent
+                }).get("objects", [])
+                
+                if not parent_objects:
+                    return f"Parent object '{set_parent}' not found in the scene."
+            
+            # If we're adding a component, we could also check if it's already attached
+            if add_component is not None:
+                object_props = unity.send_command("GET_OBJECT_PROPERTIES", {
+                    "name": name
+                })
+                
+                components = object_props.get("components", [])
+                component_exists = any(comp.get("type") == add_component for comp in components)
+                
+                if component_exists:
+                    return f"Component '{add_component}' is already attached to '{name}'."
+            
+            # If we're removing a component, check if it exists
+            if remove_component is not None:
+                object_props = unity.send_command("GET_OBJECT_PROPERTIES", {
+                    "name": name
+                })
+                
+                components = object_props.get("components", [])
+                component_exists = any(comp.get("type") == remove_component for comp in components)
+                
+                if not component_exists:
+                    return f"Component '{remove_component}' is not attached to '{name}'."
+            
             params = {"name": name}
             
             # Add basic transform properties
@@ -212,15 +301,31 @@ def register_scene_tools(mcp: FastMCP):
             return f"Error modifying game object: {str(e)}"
 
     @mcp.tool()
-    def delete_object(ctx: Context, name: str) -> str:
+    def delete_object(ctx: Context, name: str, ignore_missing: bool = False) -> str:
         """
         Remove a game object from the scene.
         
         Args:
             name: Name of the game object to delete.
+            ignore_missing: Whether to silently ignore if the object doesn't exist (default: False)
+        
+        Returns:
+            str: Success message or error details
         """
         try:
             unity = get_unity_connection()
+            
+            # Check if the object exists
+            found_objects = unity.send_command("FIND_OBJECTS_BY_NAME", {
+                "name": name
+            }).get("objects", [])
+            
+            if not found_objects:
+                if ignore_missing:
+                    return f"No object named '{name}' found to delete. Ignoring."
+                else:
+                    return f"Error: Object '{name}' not found in the scene."
+            
             result = unity.send_command("DELETE_OBJECT", {"name": name})
             return f"Deleted game object: {name}"
         except Exception as e:
