@@ -1,6 +1,6 @@
-# Unity MCP Package
+# Unity/Marrow MCP Package
 
-A Unity package that enables seamless communication between Unity and Large Language Models (LLMs) like Claude Desktop via the **Model Context Protocol (MCP)**. This server acts as a bridge, allowing Unity to send commands to and receive responses from MCP-compliant tools, empowering developers to automate workflows, manipulate assets, and control the Unity Editor programmatically.
+A Unity package that enables seamless communication between Unity and Large Language Models (LLMs) like Claude Desktop via the **Model Context Protocol (MCP)**. This server acts as a bridge, allowing Unity to send commands to and receive responses from MCP-compliant tools, empowering developers to automate workflows, manipulate assets, and control the Unity Editor programmatically. Includes extra functionality for use with the MarrowSDK, to easily create Pallets, Crates, and DataCards.
 
 Welcome to the initial release of this open-source project! Whether you're looking to integrate LLMs into your Unity workflow or contribute to an exciting new tool, we’re thrilled to have you here.
 
@@ -13,6 +13,7 @@ The Unity MCP Server provides a bidirectional communication channel between Unit
 - **Material Editing**: Modify materials and their properties.
 - **Script Integration**: View, create, and update Unity scripts.
 - **Editor Automation**: Control Unity Editor functions like undo, redo, play, and build.
+- **MarrowSDK Integration**: Create Pallets, Crates, and DataCards
 
 This project is perfect for developers who want to leverage LLMs to enhance their Unity projects or automate repetitive tasks.
 
@@ -25,7 +26,7 @@ Getting started is simple! Follow these steps to add the Unity MCP Server to you
 1. **Download the Package**  
    Add via the Unity package manager using this link
   ```text
-  https://github.com/justinpbarnett/unity-mcp.git
+  https://github.com/EvroDeveloper/unity-marrow-mcp.git
   ```
 
 2. **Add to Unity**  
