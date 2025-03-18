@@ -35,7 +35,14 @@ namespace MCPServer.Editor.Commands
             { "GET_SELECTED_OBJECT", _ => ObjectCommandHandler.GetSelectedObject() },
 
             // Editor control commands
-            { "EDITOR_CONTROL", parameters => EditorControlHandler.HandleEditorControl(parameters) }
+            { "EDITOR_CONTROL", parameters => EditorControlHandler.HandleEditorControl(parameters) },
+
+            // Marrow commands
+            { "MARROW_CREATE_PALLET", parameters => MarrowCommandHandler.CreatePallet(parameters) },
+            { "MARROW_CREATE_SCANNABLE", parameters => MarrowCommandHandler.CreateScannable(parameters)},
+            { "MARROW_PACK_PALLET", parameters => MarrowCommandHandler.PackPallet(parameters)},
+            { "MARROW_GET_PALLETS", parameters => MarrowCommandHandler.GetPallets(parameters)},
+            { "MARROW_GET_PALLET_INFO", parameters => MarrowCommandHandler.GetPalletInfo(parameters)}
         };
 
         /// <summary>
